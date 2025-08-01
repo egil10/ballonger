@@ -4,34 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bloons Tower Defense MVP</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
     <style>
         body {
             margin: 0;
-            padding: 0;
+            padding: 10px;
             background: #2c3e50;
             font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            overflow: auto;
         }
         #gameContainer {
             display: flex;
             background: #34495e;
             border-radius: 10px;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 95vw;
+            max-height: 95vh;
         }
         canvas {
             display: block;
             border-radius: 10px 0 0 10px;
         }
         #ui {
-            width: 250px;
+            width: 300px;
             background: #27ae60;
             padding: 20px;
             border-radius: 0 10px 10px 0;
             color: white;
+            max-height: 800px;
+            overflow-y: auto;
         }
         .stat {
             margin-bottom: 15px;
@@ -161,12 +167,12 @@
 
     <script>
         // Game constants
-        const GRID_SIZE = 40;
-        const COLS = 15;
-        const ROWS = 15;
+        const GRID_SIZE = 20; // Smaller grid size to fit 40x40 on screen
+        const COLS = 40;
+        const ROWS = 40;
         const CANVAS_WIDTH = COLS * GRID_SIZE;
         const CANVAS_HEIGHT = ROWS * GRID_SIZE;
-        const TOWER_PLACEMENT_RADIUS = 80; // Minimum distance between towers
+        const TOWER_PLACEMENT_RADIUS = 60; // Adjusted for smaller grid
 
         // Game state
         let gameState = {
@@ -207,29 +213,18 @@
             6: [255, 255, 255] // White
         };
 
-        // Updated path definition with proper corner turns (no diagonals)
+        // Expanded 40x40 path definition
         const PATH = [
-            {x: 0, y: 1},  // Start (blue square)
-            {x: 1, y: 1}, {x: 2, y: 1}, {x: 3, y: 1}, {x: 4, y: 1},
-            {x: 5, y: 1}, {x: 6, y: 1}, {x: 7, y: 1}, {x: 8, y: 1},
-            {x: 9, y: 1}, {x: 10, y: 1}, {x: 11, y: 1}, {x: 12, y: 1},
-            {x: 13, y: 1}, {x: 14, y: 1},
-            {x: 14, y: 2}, {x: 14, y: 3}, {x: 14, y: 4}, {x: 14, y: 5},
-            {x: 14, y: 6}, {x: 14, y: 7}, {x: 14, y: 8}, {x: 14, y: 9},
-            {x: 14, y: 10}, {x: 14, y: 11}, {x: 14, y: 12}, {x: 14, y: 13},
-            {x: 14, y: 14},
-            {x: 13, y: 14}, {x: 12, y: 14}, {x: 11, y: 14}, {x: 10, y: 14},
-            {x: 9, y: 14}, {x: 8, y: 14}, {x: 7, y: 14}, {x: 6, y: 14},
-            {x: 5, y: 14}, {x: 4, y: 14}, {x: 3, y: 14}, {x: 2, y: 14},
-            {x: 1, y: 14}, {x: 0, y: 14},
-            {x: 0, y: 13}, {x: 0, y: 12}, {x: 0, y: 11}, {x: 0, y: 10},
-            {x: 0, y: 9}, {x: 0, y: 8}, {x: 0, y: 7}, {x: 0, y: 6},
-            {x: 0, y: 5}, {x: 0, y: 4}, {x: 0, y: 3}, {x: 0, y: 2},
-            {x: 0, y: 1},
-            {x: 1, y: 1}, {x: 2, y: 1}, {x: 3, y: 1}, {x: 4, y: 1},
-            {x: 5, y: 1}, {x: 6, y: 1}, {x: 7, y: 1}, {x: 8, y: 1},
-            {x: 9, y: 1}, {x: 10, y: 1}, {x: 11, y: 1}, {x: 12, y: 1},
-            {x: 13, y: 1}, {x: 14, y: 0}  // End (red square)
+            {x: 1, y: 1}, {x: 2, y: 1}, {x: 3, y: 1}, {x: 4, y: 1}, {x: 5, y: 1}, {x: 6, y: 1}, {x: 7, y: 1}, {x: 8, y: 1}, {x: 9, y: 1}, {x: 10, y: 1}, {x: 11, y: 1}, {x: 12, y: 1}, {x: 13, y: 1},
+            {x: 14, y: 2}, {x: 15, y: 3}, {x: 16, y: 4}, {x: 17, y: 5}, {x: 18, y: 6}, {x: 19, y: 7}, {x: 20, y: 8}, {x: 21, y: 9}, {x: 22, y: 10}, {x: 23, y: 11}, {x: 24, y: 12},
+            {x: 1, y: 13}, {x: 25, y: 13}, {x: 1, y: 14}, {x: 26, y: 14}, {x: 1, y: 15}, {x: 27, y: 15}, {x: 1, y: 16}, {x: 28, y: 16},
+            {x: 2, y: 17}, {x: 29, y: 17}, {x: 3, y: 18}, {x: 30, y: 18}, {x: 4, y: 19}, {x: 31, y: 19}, {x: 5, y: 20}, {x: 32, y: 20},
+            {x: 6, y: 21}, {x: 33, y: 21}, {x: 7, y: 22}, {x: 34, y: 22}, {x: 8, y: 23}, {x: 35, y: 23}, {x: 9, y: 24}, {x: 36, y: 24},
+            {x: 10, y: 25}, {x: 37, y: 25}, {x: 11, y: 26}, {x: 38, y: 26}, {x: 12, y: 27}, {x: 39, y: 27}, {x: 13, y: 28}, {x: 40, y: 28},
+            {x: 14, y: 29}, {x: 40, y: 29}, {x: 15, y: 30}, {x: 40, y: 30}, {x: 16, y: 31}, {x: 40, y: 31}, {x: 17, y: 32}, {x: 40, y: 32},
+            {x: 18, y: 33}, {x: 40, y: 33}, {x: 19, y: 34}, {x: 40, y: 34}, {x: 20, y: 35}, {x: 39, y: 35}, {x: 21, y: 36}, {x: 38, y: 36},
+            {x: 22, y: 37}, {x: 37, y: 37}, {x: 23, y: 38}, {x: 36, y: 38}, {x: 24, y: 39}, {x: 35, y: 39}, {x: 25, y: 40},
+            {x: 26, y: 40}, {x: 27, y: 40}, {x: 28, y: 40}, {x: 29, y: 40}, {x: 30, y: 40}, {x: 31, y: 40}, {x: 32, y: 40}, {x: 33, y: 40}, {x: 34, y: 40}
         ];
 
         function setup() {
