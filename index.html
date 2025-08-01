@@ -25,6 +25,7 @@
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
             max-width: 95vw;
             max-height: 95vh;
+            align-items: stretch;
         }
         canvas {
             display: block;
@@ -36,8 +37,9 @@
             padding: 20px;
             border-radius: 0 10px 10px 0;
             color: white;
-            max-height: 800px;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
         .stat {
             margin-bottom: 15px;
@@ -119,21 +121,21 @@
         <div id="sketch-holder"></div>
         <div id="ui">
             <div class="logo">egil games</div>
-            <div class="stat">Round: <span id="round">0</span>/20</div>
+                         <div class="stat">Round: <span id="round">0</span>/40</div>
             <div class="stat">Money: $<span id="money">650</span></div>
             <div class="stat">Lives: <span id="lives">40</span></div>
             
             <button class="game-btn" id="startBtn">Start Game</button>
             <button class="game-btn" id="nextRoundBtn" disabled>Next Round</button>
             
-            <h3>Build Towers</h3>
-            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <div style="width: 40px; height: 40px; background: #8B4513; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">M</div>
-                <div style="width: 40px; height: 40px; background: #FF69B4; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">I</div>
-                <div style="width: 40px; height: 40px; background: #87CEEB; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">F</div>
-                <div style="width: 40px; height: 40px; background: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">B</div>
-                <div style="width: 40px; height: 40px; background: #4169E1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">S</div>
-            </div>
+                         <h3>Build Towers ($100)</h3>
+             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                 <div style="width: 40px; height: 40px; background: #8B4513; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">M</div>
+                 <div style="width: 40px; height: 40px; background: #FF69B4; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">I</div>
+                 <div style="width: 40px; height: 40px; background: #87CEEB; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">F</div>
+                 <div style="width: 40px; height: 40px; background: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">B</div>
+                 <div style="width: 40px; height: 40px; background: #4169E1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">S</div>
+             </div>
             
             <h3>Upgrades</h3>
             <button class="upgrade-btn" id="rangeUpgrade">Upgrade Range ($50)</button>
@@ -179,7 +181,7 @@
             money: 650,
             lives: 40,
             round: 0,
-            maxRounds: 20,
+            maxRounds: 40,
             balloons: [],
             towers: [],
             projectiles: [],
@@ -200,10 +202,11 @@
             range: 120,
             pierce: 1,
             damage: 1,
-            fireRate: 60
+            fireRate: 60,
+            cost: 100
         };
 
-        // Balloon colors by tier
+        // Balloon colors and sizes by tier
         const BALLOON_COLORS = {
             1: [255, 0, 0],    // Red
             2: [0, 0, 255],    // Blue
@@ -211,6 +214,15 @@
             4: [255, 255, 0],  // Yellow
             5: [0, 0, 0],      // Black
             6: [255, 255, 255] // White
+        };
+        
+        const BALLOON_SIZES = {
+            1: 0.8,    // Red - normal
+            2: 0.9,    // Blue - larger
+            3: 1.0,    // Green - larger
+            4: 1.1,    // Yellow - larger
+            5: 0.6,    // Black - smaller
+            6: 0.5     // White - smaller than black
         };
 
         // Expanded 40x40 path definition
@@ -320,10 +332,10 @@
             let roundMultiplier = 1 + (gameState.round - 1) * 0.3;
             gameState.balloonsInWave = Math.floor(baseBalloons * roundMultiplier);
             
-            // Varied spawn timing based on round
+            // Varied spawn timing based on round with more randomness
             let baseInterval = 30;
             let timingVariation = Math.max(10, baseInterval - (gameState.round - 1) * 2);
-            gameState.spawnInterval = timingVariation;
+            gameState.spawnInterval = timingVariation + Math.floor(Math.random() * 20) - 10; // Add randomness
             
             gameState.balloonsSpawned = 0;
             gameState.spawnTimer = 0;
@@ -334,14 +346,16 @@
             
             gameState.spawnTimer += gameState.gameSpeed;
             
-            // Spawn balloons with varied timing
+            // Spawn balloons with varied timing and more randomness
             if (gameState.spawnTimer >= gameState.spawnInterval && gameState.balloonsSpawned < gameState.balloonsInWave) {
                 spawnBalloon();
                 gameState.balloonsSpawned++;
                 gameState.spawnTimer = 0;
                 
-                // Add some randomness to spawn timing
-                gameState.spawnInterval = Math.max(5, gameState.spawnInterval + Math.floor(Math.random() * 10) - 5);
+                // Add more randomness to spawn timing
+                let baseInterval = 30;
+                let timingVariation = Math.max(10, baseInterval - (gameState.round - 1) * 2);
+                gameState.spawnInterval = timingVariation + Math.floor(Math.random() * 30) - 15; // More randomness
             }
             
             // Check if wave is complete
@@ -365,9 +379,13 @@
             // Increase speed in later rounds
             speed += Math.floor((gameState.round - 1) / 5);
             
+            // Add slight position variation to prevent perfect alignment
+            let spawnX = PATH[0].x * GRID_SIZE + GRID_SIZE / 2 + (Math.random() * 10 - 5);
+            let spawnY = PATH[0].y * GRID_SIZE + GRID_SIZE / 2 + (Math.random() * 10 - 5);
+            
             gameState.balloons.push({
-                x: PATH[0].x * GRID_SIZE + GRID_SIZE / 2,
-                y: PATH[0].y * GRID_SIZE + GRID_SIZE / 2,
+                x: spawnX,
+                y: spawnY,
                 pathIndex: 0,
                 tier: tier,
                 speed: speed,
@@ -403,10 +421,11 @@
                     }
                 }
                 
-                // Draw balloon
+                // Draw balloon with variable size
                 let color = BALLOON_COLORS[balloon.tier];
+                let size = BALLOON_SIZES[balloon.tier];
                 fill(color[0], color[1], color[2]);
-                ellipse(balloon.x, balloon.y, GRID_SIZE * 0.8, GRID_SIZE * 0.8);
+                ellipse(balloon.x, balloon.y, GRID_SIZE * size, GRID_SIZE * size);
                 
                 // Draw health bar for damaged balloons
                 if (balloon.health < balloon.maxHealth) {
@@ -421,13 +440,13 @@
 
         function updateAndDrawTowers() {
             for (let tower of gameState.towers) {
-                // Draw tower
+                // Draw tower (smaller size)
                 if (gameState.selectedTower === tower) {
                     fill(255, 215, 0); // Gold for selected tower
                 } else {
                     fill(139, 69, 19);
                 }
-                rect(tower.x - GRID_SIZE/2, tower.y - GRID_SIZE/2, GRID_SIZE, GRID_SIZE);
+                rect(tower.x - GRID_SIZE/3, tower.y - GRID_SIZE/3, GRID_SIZE * 2/3, GRID_SIZE * 2/3);
                 
                 // Draw range indicator (transparent)
                 fill(255, 255, 255, 30);
@@ -575,33 +594,34 @@
                     let towerX = gridX * GRID_SIZE + GRID_SIZE / 2;
                     let towerY = gridY * GRID_SIZE + GRID_SIZE / 2;
                     
-                    // Check minimum distance from other towers
-                    let tooClose = false;
-                    for (let tower of gameState.towers) {
-                        let distance = dist(towerX, towerY, tower.x, tower.y);
-                        if (distance < TOWER_PLACEMENT_RADIUS) {
-                            tooClose = true;
-                            break;
-                        }
+                                    // Check minimum distance from other towers
+                let tooClose = false;
+                for (let tower of gameState.towers) {
+                    let distance = dist(towerX, towerY, tower.x, tower.y);
+                    if (distance < TOWER_PLACEMENT_RADIUS) {
+                        tooClose = true;
+                        break;
                     }
+                }
+                
+                if (!tooClose && gameState.money >= baseTowerConfig.cost) {
+                    let newTower = {
+                        x: towerX,
+                        y: towerY,
+                        range: baseTowerConfig.range,
+                        pierce: baseTowerConfig.pierce,
+                        damage: baseTowerConfig.damage,
+                        fireRate: baseTowerConfig.fireRate,
+                        cooldown: 0,
+                        rangeUpgraded: false,
+                        pierceUpgraded: false
+                    };
                     
-                    if (!tooClose) {
-                        let newTower = {
-                            x: towerX,
-                            y: towerY,
-                            range: baseTowerConfig.range,
-                            pierce: baseTowerConfig.pierce,
-                            damage: baseTowerConfig.damage,
-                            fireRate: baseTowerConfig.fireRate,
-                            cooldown: 0,
-                            rangeUpgraded: false,
-                            pierceUpgraded: false
-                        };
-                        
-                        gameState.towers.push(newTower);
-                        gameState.selectedTower = newTower;
-                        updateSelectedTowerInfo();
-                    }
+                    gameState.money -= baseTowerConfig.cost;
+                    gameState.towers.push(newTower);
+                    gameState.selectedTower = newTower;
+                    updateSelectedTowerInfo();
+                }
                 }
             }
         }
@@ -713,7 +733,7 @@
                 money: 650,
                 lives: 40,
                 round: 0,
-                maxRounds: 20,
+                maxRounds: 40,
                 balloons: [],
                 towers: [],
                 projectiles: [],
@@ -733,7 +753,8 @@
                 range: 120,
                 pierce: 1,
                 damage: 1,
-                fireRate: 60
+                fireRate: 60,
+                cost: 100
             };
             
             document.getElementById('startBtn').disabled = false;
