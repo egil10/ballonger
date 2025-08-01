@@ -69,16 +69,39 @@
             font-size: 24px;
             font-weight: bold;
         }
+        .game-btn {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .game-btn:hover {
+            background: #2980b9;
+        }
+        .game-btn:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <div id="sketch-holder"></div>
         <div id="ui">
-            <div class="logo">nk games</div>
-            <div class="stat">Round: <span id="round">1</span></div>
+            <div class="logo">egil games</div>
+            <div class="stat">Round: <span id="round">0</span>/20</div>
             <div class="stat">Money: $<span id="money">650</span></div>
             <div class="stat">Lives: <span id="lives">40</span></div>
+            
+            <button class="game-btn" id="startBtn">Start Game</button>
+            <button class="game-btn" id="nextRoundBtn" disabled>Next Round</button>
             
             <h3>Build Towers</h3>
             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
@@ -94,10 +117,8 @@
             <button class="upgrade-btn" id="pierceUpgrade">Upgrade Pierce ($50)</button>
             
             <div class="tower-info">
-                <h4>Tower Stats</h4>
-                <div>Range: <span id="towerRange">120</span></div>
-                <div>Pierce: <span id="towerPierce">1</span></div>
-                <div>Damage: <span id="towerDamage">1</span></div>
+                <h4>Selected Tower</h4>
+                <div id="selectedTowerInfo">Click a tower to select</div>
             </div>
             
             <div style="margin-top: 20px; text-align: center;">
@@ -113,13 +134,14 @@
         const ROWS = 15;
         const CANVAS_WIDTH = COLS * GRID_SIZE;
         const CANVAS_HEIGHT = ROWS * GRID_SIZE;
+        const TOWER_PLACEMENT_RADIUS = 80; // Minimum distance between towers
 
         // Game state
         let gameState = {
             money: 650,
             lives: 40,
-            round: 1,
-            maxRounds: 5,
+            round: 0,
+            maxRounds: 20,
             balloons: [],
             towers: [],
             projectiles: [],
@@ -127,17 +149,19 @@
             balloonsInWave: 0,
             balloonsSpawned: 0,
             spawnTimer: 0,
+            spawnInterval: 30,
             gameOver: false,
-            gameWon: false
+            gameWon: false,
+            gameStarted: false,
+            selectedTower: null
         };
 
-        // Tower configuration
-        let towerConfig = {
+        // Base tower configuration
+        let baseTowerConfig = {
             range: 120,
             pierce: 1,
             damage: 1,
-            fireRate: 60, // frames between shots
-            cooldown: 0
+            fireRate: 60
         };
 
         // Balloon colors by tier
@@ -150,37 +174,43 @@
             6: [255, 255, 255] // White
         };
 
-        // Path definition based on the image
+        // Updated path definition with proper corner turns (no diagonals)
         const PATH = [
             {x: 0, y: 1},  // Start (blue square)
             {x: 1, y: 1}, {x: 2, y: 1}, {x: 3, y: 1}, {x: 4, y: 1},
-            {x: 5, y: 2}, {x: 6, y: 3}, {x: 7, y: 4}, {x: 8, y: 5},
-            {x: 8, y: 6}, {x: 8, y: 7}, {x: 8, y: 8}, {x: 8, y: 9}, {x: 8, y: 10}, {x: 8, y: 11}, {x: 8, y: 12}, {x: 8, y: 13}, {x: 8, y: 14},
-            {x: 9, y: 14}, {x: 10, y: 14}, {x: 11, y: 14}, {x: 12, y: 14}, {x: 13, y: 14}, {x: 14, y: 14},
-            {x: 14, y: 13}, {x: 14, y: 12}, {x: 14, y: 11}, {x: 14, y: 10}, {x: 14, y: 9}, {x: 14, y: 8}, {x: 14, y: 7}, {x: 14, y: 6}, {x: 14, y: 5}, {x: 14, y: 4}, {x: 14, y: 3}, {x: 14, y: 2}, {x: 14, y: 1}, {x: 14, y: 0}  // End (red square)
+            {x: 5, y: 1}, {x: 6, y: 1}, {x: 7, y: 1}, {x: 8, y: 1},
+            {x: 9, y: 1}, {x: 10, y: 1}, {x: 11, y: 1}, {x: 12, y: 1},
+            {x: 13, y: 1}, {x: 14, y: 1},
+            {x: 14, y: 2}, {x: 14, y: 3}, {x: 14, y: 4}, {x: 14, y: 5},
+            {x: 14, y: 6}, {x: 14, y: 7}, {x: 14, y: 8}, {x: 14, y: 9},
+            {x: 14, y: 10}, {x: 14, y: 11}, {x: 14, y: 12}, {x: 14, y: 13},
+            {x: 14, y: 14},
+            {x: 13, y: 14}, {x: 12, y: 14}, {x: 11, y: 14}, {x: 10, y: 14},
+            {x: 9, y: 14}, {x: 8, y: 14}, {x: 7, y: 14}, {x: 6, y: 14},
+            {x: 5, y: 14}, {x: 4, y: 14}, {x: 3, y: 14}, {x: 2, y: 14},
+            {x: 1, y: 14}, {x: 0, y: 14},
+            {x: 0, y: 13}, {x: 0, y: 12}, {x: 0, y: 11}, {x: 0, y: 10},
+            {x: 0, y: 9}, {x: 0, y: 8}, {x: 0, y: 7}, {x: 0, y: 6},
+            {x: 0, y: 5}, {x: 0, y: 4}, {x: 0, y: 3}, {x: 0, y: 2},
+            {x: 0, y: 1},
+            {x: 1, y: 1}, {x: 2, y: 1}, {x: 3, y: 1}, {x: 4, y: 1},
+            {x: 5, y: 1}, {x: 6, y: 1}, {x: 7, y: 1}, {x: 8, y: 1},
+            {x: 9, y: 1}, {x: 10, y: 1}, {x: 11, y: 1}, {x: 12, y: 1},
+            {x: 13, y: 1}, {x: 14, y: 0}  // End (red square)
         ];
 
         function setup() {
             let canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
             canvas.parent('sketch-holder');
             
-            // Initialize first tower
-            gameState.towers.push({
-                x: 200,
-                y: 200,
-                range: towerConfig.range,
-                pierce: towerConfig.pierce,
-                damage: towerConfig.damage,
-                fireRate: towerConfig.fireRate,
-                cooldown: 0
-            });
-            
             // Set up event listeners
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('nextRoundBtn').addEventListener('click', startNextRound);
             document.getElementById('rangeUpgrade').addEventListener('click', upgradeRange);
             document.getElementById('pierceUpgrade').addEventListener('click', upgradePierce);
             document.getElementById('restartBtn').addEventListener('click', restartGame);
             
-            startWave();
+            updateUI();
         }
 
         function draw() {
@@ -235,41 +265,71 @@
             rect(PATH[PATH.length - 1].x * GRID_SIZE, PATH[PATH.length - 1].y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
         }
 
+        function startGame() {
+            gameState.gameStarted = true;
+            gameState.round = 1;
+            document.getElementById('startBtn').disabled = true;
+            startWave();
+        }
+
+        function startNextRound() {
+            gameState.round++;
+            document.getElementById('nextRoundBtn').disabled = true;
+            startWave();
+        }
+
         function startWave() {
             gameState.waveInProgress = true;
-            gameState.balloonsInWave = gameState.round * 8;
+            
+            // Progressive difficulty: more balloons and varied timing
+            let baseBalloons = 8;
+            let roundMultiplier = 1 + (gameState.round - 1) * 0.3;
+            gameState.balloonsInWave = Math.floor(baseBalloons * roundMultiplier);
+            
+            // Varied spawn timing based on round
+            let baseInterval = 30;
+            let timingVariation = Math.max(10, baseInterval - (gameState.round - 1) * 2);
+            gameState.spawnInterval = timingVariation;
+            
             gameState.balloonsSpawned = 0;
             gameState.spawnTimer = 0;
         }
 
         function updateWave() {
-            if (!gameState.waveInProgress) return;
+            if (!gameState.waveInProgress || !gameState.gameStarted) return;
             
             gameState.spawnTimer++;
             
-            // Spawn balloons every 30 frames
-            if (gameState.spawnTimer >= 30 && gameState.balloonsSpawned < gameState.balloonsInWave) {
+            // Spawn balloons with varied timing
+            if (gameState.spawnTimer >= gameState.spawnInterval && gameState.balloonsSpawned < gameState.balloonsInWave) {
                 spawnBalloon();
                 gameState.balloonsSpawned++;
                 gameState.spawnTimer = 0;
+                
+                // Add some randomness to spawn timing
+                gameState.spawnInterval = Math.max(5, gameState.spawnInterval + Math.floor(Math.random() * 10) - 5);
             }
             
             // Check if wave is complete
             if (gameState.balloonsSpawned >= gameState.balloonsInWave && gameState.balloons.length === 0) {
                 gameState.waveInProgress = false;
-                gameState.round++;
                 
-                if (gameState.round > gameState.maxRounds) {
+                if (gameState.round >= gameState.maxRounds) {
                     gameState.gameWon = true;
                 } else {
-                    setTimeout(startWave, 1000);
+                    document.getElementById('nextRoundBtn').disabled = false;
                 }
             }
         }
 
         function spawnBalloon() {
-            let tier = Math.min(Math.floor(Math.random() * 6) + 1, gameState.round);
+            // Progressive difficulty: higher tier balloons appear in later rounds
+            let maxTier = Math.min(6, Math.floor(gameState.round / 3) + 1);
+            let tier = Math.floor(Math.random() * maxTier) + 1;
             let speed = tier === 4 ? 2 : 1; // Yellow balloons are faster
+            
+            // Increase speed in later rounds
+            speed += Math.floor((gameState.round - 1) / 5);
             
             gameState.balloons.push({
                 x: PATH[0].x * GRID_SIZE + GRID_SIZE / 2,
@@ -328,7 +388,11 @@
         function updateAndDrawTowers() {
             for (let tower of gameState.towers) {
                 // Draw tower
-                fill(139, 69, 19);
+                if (gameState.selectedTower === tower) {
+                    fill(255, 215, 0); // Gold for selected tower
+                } else {
+                    fill(139, 69, 19);
+                }
                 rect(tower.x - GRID_SIZE/2, tower.y - GRID_SIZE/2, GRID_SIZE, GRID_SIZE);
                 
                 // Draw range indicator (transparent)
@@ -450,7 +514,17 @@
 
         function mousePressed() {
             if (mouseX < CANVAS_WIDTH && mouseY < CANVAS_HEIGHT) {
-                // Place tower at grid position
+                // Check if clicking on existing tower to select it
+                for (let tower of gameState.towers) {
+                    let distance = dist(mouseX, mouseY, tower.x, tower.y);
+                    if (distance < GRID_SIZE / 2) {
+                        gameState.selectedTower = tower;
+                        updateSelectedTowerInfo();
+                        return;
+                    }
+                }
+                
+                // Place new tower at grid position
                 let gridX = Math.floor(mouseX / GRID_SIZE);
                 let gridY = Math.floor(mouseY / GRID_SIZE);
                 
@@ -467,51 +541,72 @@
                     let towerX = gridX * GRID_SIZE + GRID_SIZE / 2;
                     let towerY = gridY * GRID_SIZE + GRID_SIZE / 2;
                     
-                    // Check if tower already exists at this position
-                    let towerExists = false;
+                    // Check minimum distance from other towers
+                    let tooClose = false;
                     for (let tower of gameState.towers) {
-                        if (Math.abs(tower.x - towerX) < GRID_SIZE/2 && Math.abs(tower.y - towerY) < GRID_SIZE/2) {
-                            towerExists = true;
+                        let distance = dist(towerX, towerY, tower.x, tower.y);
+                        if (distance < TOWER_PLACEMENT_RADIUS) {
+                            tooClose = true;
                             break;
                         }
                     }
                     
-                    if (!towerExists) {
-                        gameState.towers.push({
+                    if (!tooClose) {
+                        let newTower = {
                             x: towerX,
                             y: towerY,
-                            range: towerConfig.range,
-                            pierce: towerConfig.pierce,
-                            damage: towerConfig.damage,
-                            fireRate: towerConfig.fireRate,
-                            cooldown: 0
-                        });
+                            range: baseTowerConfig.range,
+                            pierce: baseTowerConfig.pierce,
+                            damage: baseTowerConfig.damage,
+                            fireRate: baseTowerConfig.fireRate,
+                            cooldown: 0,
+                            rangeUpgraded: false,
+                            pierceUpgraded: false
+                        };
+                        
+                        gameState.towers.push(newTower);
+                        gameState.selectedTower = newTower;
+                        updateSelectedTowerInfo();
                     }
                 }
             }
         }
 
         function upgradeRange() {
-            if (gameState.money >= 50) {
+            if (gameState.selectedTower && !gameState.selectedTower.rangeUpgraded && gameState.money >= 50) {
                 gameState.money -= 50;
-                towerConfig.range += 20;
-                
-                // Update all existing towers
-                for (let tower of gameState.towers) {
-                    tower.range = towerConfig.range;
-                }
+                gameState.selectedTower.range += 20;
+                gameState.selectedTower.rangeUpgraded = true;
+                updateSelectedTowerInfo();
             }
         }
 
         function upgradePierce() {
-            if (gameState.money >= 50) {
+            if (gameState.selectedTower && !gameState.selectedTower.pierceUpgraded && gameState.money >= 50) {
                 gameState.money -= 50;
-                towerConfig.pierce += 1;
+                gameState.selectedTower.pierce += 1;
+                gameState.selectedTower.pierceUpgraded = true;
+                updateSelectedTowerInfo();
+            }
+        }
+
+        function updateSelectedTowerInfo() {
+            let infoDiv = document.getElementById('selectedTowerInfo');
+            if (gameState.selectedTower) {
+                let tower = gameState.selectedTower;
+                infoDiv.innerHTML = `
+                    <div>Range: ${tower.range} ${tower.rangeUpgraded ? '(Upgraded)' : ''}</div>
+                    <div>Pierce: ${tower.pierce} ${tower.pierceUpgraded ? '(Upgraded)' : ''}</div>
+                    <div>Damage: ${tower.damage}</div>
+                `;
                 
-                // Update all existing towers
-                for (let tower of gameState.towers) {
-                    tower.pierce = towerConfig.pierce;
-                }
+                // Update button states
+                document.getElementById('rangeUpgrade').disabled = tower.rangeUpgraded || gameState.money < 50;
+                document.getElementById('pierceUpgrade').disabled = tower.pierceUpgraded || gameState.money < 50;
+            } else {
+                infoDiv.innerHTML = 'Click a tower to select';
+                document.getElementById('rangeUpgrade').disabled = true;
+                document.getElementById('pierceUpgrade').disabled = true;
             }
         }
 
@@ -519,13 +614,12 @@
             document.getElementById('round').textContent = gameState.round;
             document.getElementById('money').textContent = gameState.money;
             document.getElementById('lives').textContent = gameState.lives;
-            document.getElementById('towerRange').textContent = towerConfig.range;
-            document.getElementById('towerPierce').textContent = towerConfig.pierce;
-            document.getElementById('towerDamage').textContent = towerConfig.damage;
             
             // Update button states
-            document.getElementById('rangeUpgrade').disabled = gameState.money < 50;
-            document.getElementById('pierceUpgrade').disabled = gameState.money < 50;
+            document.getElementById('startBtn').disabled = gameState.gameStarted;
+            document.getElementById('nextRoundBtn').disabled = gameState.waveInProgress || gameState.round === 0;
+            
+            updateSelectedTowerInfo();
             
             // Check for game over
             if (gameState.lives <= 0) {
@@ -544,7 +638,7 @@
             
             fill(255);
             textSize(24);
-            text(`You survived ${gameState.round - 1} rounds!`, CANVAS_WIDTH/2, CANVAS_HEIGHT/2 + 50);
+            text(`You survived ${gameState.round} rounds!`, CANVAS_WIDTH/2, CANVAS_HEIGHT/2 + 50);
         }
 
         function drawGameWon() {
@@ -565,8 +659,8 @@
             gameState = {
                 money: 650,
                 lives: 40,
-                round: 1,
-                maxRounds: 5,
+                round: 0,
+                maxRounds: 20,
                 balloons: [],
                 towers: [],
                 projectiles: [],
@@ -574,30 +668,23 @@
                 balloonsInWave: 0,
                 balloonsSpawned: 0,
                 spawnTimer: 0,
+                spawnInterval: 30,
                 gameOver: false,
-                gameWon: false
+                gameWon: false,
+                gameStarted: false,
+                selectedTower: null
             };
             
-            towerConfig = {
+            baseTowerConfig = {
                 range: 120,
                 pierce: 1,
                 damage: 1,
-                fireRate: 60,
-                cooldown: 0
+                fireRate: 60
             };
             
-            // Add initial tower
-            gameState.towers.push({
-                x: 200,
-                y: 200,
-                range: towerConfig.range,
-                pierce: towerConfig.pierce,
-                damage: towerConfig.damage,
-                fireRate: towerConfig.fireRate,
-                cooldown: 0
-            });
-            
-            startWave();
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('nextRoundBtn').disabled = true;
+            updateUI();
         }
     </script>
 </body>
