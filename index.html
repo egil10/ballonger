@@ -89,6 +89,23 @@
             background: #7f8c8d;
             cursor: not-allowed;
         }
+        .speed-btn {
+            flex: 1;
+            padding: 8px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        .speed-btn:hover {
+            background: #7f8c8d;
+        }
+        .speed-btn.active {
+            background: #e74c3c;
+        }
     </style>
 </head>
 <body>
@@ -119,6 +136,21 @@
             <div class="tower-info">
                 <h4>Selected Tower</h4>
                 <div id="selectedTowerInfo">Click a tower to select</div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <h3>Game Speed</h3>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <label for="speedSlider" style="font-size: 14px;">Speed:</label>
+                    <input type="range" id="speedSlider" min="1" max="10" value="1" style="flex: 1;">
+                    <span id="speedDisplay" style="font-weight: bold; min-width: 30px;">1x</span>
+                </div>
+                <div style="display: flex; gap: 5px; margin-bottom: 20px;">
+                    <button class="speed-btn" data-speed="1">1x</button>
+                    <button class="speed-btn" data-speed="2">2x</button>
+                    <button class="speed-btn" data-speed="5">5x</button>
+                    <button class="speed-btn" data-speed="10">10x</button>
+                </div>
             </div>
             
             <div style="margin-top: 20px; text-align: center;">
@@ -153,7 +185,8 @@
             gameOver: false,
             gameWon: false,
             gameStarted: false,
-            selectedTower: null
+            selectedTower: null,
+            gameSpeed: 1
         };
 
         // Base tower configuration
@@ -209,6 +242,12 @@
             document.getElementById('rangeUpgrade').addEventListener('click', upgradeRange);
             document.getElementById('pierceUpgrade').addEventListener('click', upgradePierce);
             document.getElementById('restartBtn').addEventListener('click', restartGame);
+            
+            // Speed control event listeners
+            document.getElementById('speedSlider').addEventListener('input', updateSpeedFromSlider);
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.addEventListener('click', () => setSpeed(parseInt(btn.dataset.speed)));
+            });
             
             updateUI();
         }
@@ -298,7 +337,7 @@
         function updateWave() {
             if (!gameState.waveInProgress || !gameState.gameStarted) return;
             
-            gameState.spawnTimer++;
+            gameState.spawnTimer += gameState.gameSpeed;
             
             // Spawn balloons with varied timing
             if (gameState.spawnTimer >= gameState.spawnInterval && gameState.balloonsSpawned < gameState.balloonsInWave) {
@@ -355,7 +394,7 @@
                     let dy = targetY - balloon.y;
                     let distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (distance < balloon.speed) {
+                    if (distance < balloon.speed * gameState.gameSpeed) {
                         balloon.pathIndex++;
                         if (balloon.pathIndex >= PATH.length - 1) {
                             // Balloon reached the end
@@ -364,8 +403,8 @@
                             continue;
                         }
                     } else {
-                        balloon.x += (dx / distance) * balloon.speed;
-                        balloon.y += (dy / distance) * balloon.speed;
+                        balloon.x += (dx / distance) * balloon.speed * gameState.gameSpeed;
+                        balloon.y += (dy / distance) * balloon.speed * gameState.gameSpeed;
                     }
                 }
                 
@@ -401,11 +440,11 @@
                 
                 // Update cooldown
                 if (tower.cooldown > 0) {
-                    tower.cooldown--;
+                    tower.cooldown -= gameState.gameSpeed;
                 }
                 
                 // Find target and shoot
-                if (tower.cooldown === 0) {
+                if (tower.cooldown <= 0) {
                     let target = findTarget(tower);
                     if (target) {
                         shoot(tower, target);
@@ -454,14 +493,14 @@
                 let dy = projectile.targetY - projectile.y;
                 let distance = Math.sqrt(dx * dx + dy * dy);
                 
-                if (distance < projectile.speed) {
+                if (distance < projectile.speed * gameState.gameSpeed) {
                     // Projectile reached target
                     gameState.projectiles.splice(i, 1);
                     continue;
                 }
                 
-                projectile.x += (dx / distance) * projectile.speed;
-                projectile.y += (dy / distance) * projectile.speed;
+                projectile.x += (dx / distance) * projectile.speed * gameState.gameSpeed;
+                projectile.y += (dy / distance) * projectile.speed * gameState.gameSpeed;
                 
                 // Draw projectile
                 fill(255, 255, 0);
@@ -610,6 +649,25 @@
             }
         }
 
+        function setSpeed(speed) {
+            gameState.gameSpeed = speed;
+            document.getElementById('speedSlider').value = speed;
+            document.getElementById('speedDisplay').textContent = speed + 'x';
+            
+            // Update button states
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (parseInt(btn.dataset.speed) === speed) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        function updateSpeedFromSlider() {
+            let speed = parseInt(document.getElementById('speedSlider').value);
+            setSpeed(speed);
+        }
+
         function updateUI() {
             document.getElementById('round').textContent = gameState.round;
             document.getElementById('money').textContent = gameState.money;
@@ -672,7 +730,8 @@
                 gameOver: false,
                 gameWon: false,
                 gameStarted: false,
-                selectedTower: null
+                selectedTower: null,
+                gameSpeed: 1
             };
             
             baseTowerConfig = {
@@ -684,6 +743,7 @@
             
             document.getElementById('startBtn').disabled = false;
             document.getElementById('nextRoundBtn').disabled = true;
+            setSpeed(1); // Reset speed to 1x
             updateUI();
         }
     </script>
