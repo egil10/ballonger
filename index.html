@@ -3,63 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Play Bloons Tower Defense MVP - a modern, clean tower defense game with smooth gameplay!">
+    <meta name="theme-color" content="#1e3c72">
     <title>Bloons Tower Defense MVP</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js" defer></script>
     <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #1e3c72, #2a5298);
+            --secondary-gradient: linear-gradient(145deg, #2c3e50, #34495e);
+            --success-gradient: linear-gradient(180deg, #27ae60, #2ecc71);
+            --button-hover: rgba(255, 255, 255, 0.2);
+            --shadow-light: 0 4px 15px rgba(0, 0, 0, 0.2);
+            --shadow-heavy: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
         
         body {
-            margin: 0;
-            padding: 15px;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background: var(--primary-gradient);
             min-height: 100vh;
-            overflow: auto;
+            display: grid;
+            place-items: center;
             color: #333;
+            overflow-x: hidden;
         }
         
         #gameContainer {
             display: flex;
-            background: linear-gradient(145deg, #2c3e50, #34495e);
+            background: var(--secondary-gradient);
             border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1);
+            box-shadow: var(--shadow-heavy), 0 0 0 1px rgba(255, 255, 255, 0.1);
             max-width: 95vw;
             max-height: 95vh;
-            align-items: stretch;
             overflow: hidden;
+            transition: transform 0.3s ease;
         }
         
         canvas {
             display: block;
             border-radius: 20px 0 0 20px;
+            touch-action: none;
         }
         
         #ui {
-            width: 320px;
-            background: linear-gradient(180deg, #27ae60 0%, #2ecc71 100%);
-            padding: 25px;
+            width: 300px;
+            background: var(--success-gradient);
+            padding: 20px;
             border-radius: 0 20px 20px 0;
             color: white;
-            overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+            gap: 15px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
         }
         
+        #ui::-webkit-scrollbar {
+            width: 8px;
+        }
+        #ui::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        #ui::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
         .logo {
             text-align: center;
-            margin-bottom: 10px;
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 800;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-transform: uppercase;
             letter-spacing: 2px;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         
         .stats-container {
@@ -461,35 +484,10 @@
             background: rgba(255,255,255,0.5);
         }
         
-        /* Responsive design */
-        @media (max-width: 1200px) {
-            #ui {
-                width: 280px;
-                padding: 20px;
-            }
-            
-            .tower-option {
-                width: 45px;
-                height: 45px;
-                font-size: 16px;
-            }
-        }
-        
         @media (max-width: 900px) {
-            #gameContainer {
-                flex-direction: column;
-                max-height: 95vh;
-            }
-            
-            canvas {
-                border-radius: 20px 20px 0 0;
-            }
-            
-            #ui {
-                width: 100%;
-                border-radius: 0 0 20px 20px;
-                max-height: 40vh;
-            }
+            #gameContainer { flex-direction: column; max-height: unset; }
+            canvas { border-radius: 20px 20px 0 0; }
+            #ui { width: 100%; border-radius: 0 0 20px 20px; max-height: 40vh; }
         }
     </style>
 </head>
