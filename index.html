@@ -7,112 +7,489 @@
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        
         body {
             margin: 0;
-            padding: 10px;
-            background: #2c3e50;
-            font-family: Arial, sans-serif;
+            padding: 15px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             overflow: auto;
+            color: #333;
         }
+        
         #gameContainer {
             display: flex;
-            background: #34495e;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1);
             max-width: 95vw;
             max-height: 95vh;
             align-items: stretch;
+            overflow: hidden;
         }
+        
         canvas {
             display: block;
-            border-radius: 10px 0 0 10px;
+            border-radius: 20px 0 0 20px;
         }
+        
         #ui {
-            width: 300px;
-            background: #27ae60;
-            padding: 20px;
-            border-radius: 0 10px 10px 0;
+            width: 320px;
+            background: linear-gradient(180deg, #27ae60 0%, #2ecc71 100%);
+            padding: 25px;
+            border-radius: 0 20px 20px 0;
             color: white;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            gap: 20px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
         }
-        .stat {
-            margin-bottom: 15px;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        .upgrade-btn {
-            width: 100%;
-            padding: 10px;
-            margin: 5px 0;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
-        }
-        .upgrade-btn:hover {
-            background: #c0392b;
-        }
-        .upgrade-btn:disabled {
-            background: #7f8c8d;
-            cursor: not-allowed;
-        }
-        .tower-info {
-            margin-top: 20px;
-            padding: 10px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 5px;
-        }
+        
         .logo {
             text-align: center;
-            margin-bottom: 20px;
-            font-size: 24px;
-            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 28px;
+            font-weight: 800;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            letter-spacing: 2px;
         }
+        
+        .stats-container {
+            background: rgba(255,255,255,0.15);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .stat {
+            margin-bottom: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stat-value {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .game-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
         .game-btn {
             width: 100%;
-            padding: 15px;
-            margin: 10px 0;
-            background: #3498db;
+            padding: 15px 20px;
+            background: linear-gradient(145deg, #3498db, #2980b9);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 12px;
             cursor: pointer;
             font-size: 16px;
-            font-weight: bold;
-            transition: background 0.3s;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+            position: relative;
+            overflow: hidden;
         }
+        
+        .game-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .game-btn:hover::before {
+            left: 100%;
+        }
+        
         .game-btn:hover {
-            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
         }
+        
+        .game-btn:active {
+            transform: translateY(0);
+        }
+        
         .game-btn:disabled {
-            background: #7f8c8d;
+            background: linear-gradient(145deg, #95a5a6, #7f8c8d);
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
-        .speed-btn {
-            flex: 1;
-            padding: 8px;
-            background: #95a5a6;
+        
+        .game-btn:disabled::before {
+            display: none;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 3px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 2px;
+        }
+        
+        .tower-selection {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .tower-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .tower-option {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(145deg, #8B4513, #A0522D);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        
+        .tower-option:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+        }
+        
+        .tower-option.selected {
+            border-color: #f39c12;
+            box-shadow: 0 0 20px rgba(243, 156, 18, 0.6);
+            transform: scale(1.05);
+        }
+        
+        .tower-option.cost {
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+        }
+        
+        .tower-option.ice {
+            background: linear-gradient(145deg, #87CEEB, #5DADE2);
+        }
+        
+        .tower-option.fire {
+            background: linear-gradient(145deg, #FF69B4, #E91E63);
+        }
+        
+        .tower-option.bomb {
+            background: linear-gradient(145deg, #000, #2C3E50);
+        }
+        
+        .tower-option.super {
+            background: linear-gradient(145deg, #4169E1, #1E3A8A);
+        }
+        
+        .upgrades-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .upgrade-btn {
+            width: 100%;
+            padding: 12px 16px;
+            margin: 8px 0;
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
             color: white;
             border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upgrade-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .upgrade-btn:hover::before {
+            left: 100%;
+        }
+        
+        .upgrade-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(231, 76, 60, 0.4);
+        }
+        
+        .upgrade-btn:active {
+            transform: translateY(0);
+        }
+        
+        .upgrade-btn:disabled {
+            background: linear-gradient(145deg, #95a5a6, #7f8c8d);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .upgrade-btn:disabled::before {
+            display: none;
+        }
+        
+        .tower-info {
+            background: rgba(255,255,255,0.15);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .tower-info h4 {
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+        }
+        
+        .tower-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .tower-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .tower-stat.upgraded {
+            background: rgba(243, 156, 18, 0.3);
+            border: 1px solid rgba(243, 156, 18, 0.5);
+        }
+        
+        .speed-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .speed-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .speed-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .speed-slider {
+            flex: 1;
+            height: 6px;
             border-radius: 3px;
+            background: rgba(255,255,255,0.3);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f39c12;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .speed-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+        
+        .speed-display {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            min-width: 50px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .speed-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .speed-btn {
+            flex: 1;
+            padding: 10px 8px;
+            background: linear-gradient(145deg, #95a5a6, #7f8c8d);
+            color: white;
+            border: none;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 12px;
-            transition: background 0.3s;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
+        
         .speed-btn:hover {
-            background: #7f8c8d;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
+        
         .speed-btn.active {
-            background: #e74c3c;
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 10px rgba(231, 76, 60, 0.4);
+        }
+        
+        .restart-section {
+            text-align: center;
+        }
+        
+        .restart-btn {
+            width: 100%;
+            padding: 15px 20px;
+            background: linear-gradient(145deg, #9b59b6, #8e44ad);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(155, 89, 182, 0.3);
+        }
+        
+        .restart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(155, 89, 182, 0.4);
+        }
+        
+        .restart-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Scrollbar styling */
+        #ui::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #ui::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+        
+        #ui::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+        }
+        
+        #ui::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
+        }
+        
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            #ui {
+                width: 280px;
+                padding: 20px;
+            }
+            
+            .tower-option {
+                width: 45px;
+                height: 45px;
+                font-size: 16px;
+            }
+        }
+        
+        @media (max-width: 900px) {
+            #gameContainer {
+                flex-direction: column;
+                max-height: 95vh;
+            }
+            
+            canvas {
+                border-radius: 20px 20px 0 0;
+            }
+            
+            #ui {
+                width: 100%;
+                border-radius: 0 0 20px 20px;
+                max-height: 40vh;
+            }
         }
     </style>
 </head>
@@ -121,48 +498,64 @@
         <div id="sketch-holder"></div>
         <div id="ui">
             <div class="logo">egil games</div>
-                         <div class="stat">Round: <span id="round">0</span>/40</div>
-            <div class="stat">Money: $<span id="money">650</span></div>
-            <div class="stat">Lives: <span id="lives">40</span></div>
             
-            <button class="game-btn" id="startBtn">Start Game</button>
-            <button class="game-btn" id="nextRoundBtn" disabled>Next Round</button>
+            <div class="stats-container">
+                <div class="stat">Round: <span class="stat-value" id="round">0</span>/40</div>
+                <div class="stat">Money: <span class="stat-value">$<span id="money">650</span></span></div>
+                <div class="stat">Lives: <span class="stat-value" id="lives">40</span></div>
+            </div>
             
-                         <h3>Build Towers ($100)</h3>
-             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                 <div style="width: 40px; height: 40px; background: #8B4513; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">M</div>
-                 <div style="width: 40px; height: 40px; background: #FF69B4; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">I</div>
-                 <div style="width: 40px; height: 40px; background: #87CEEB; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">F</div>
-                 <div style="width: 40px; height: 40px; background: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">B</div>
-                 <div style="width: 40px; height: 40px; background: #4169E1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">S</div>
-             </div>
+            <div class="game-controls">
+                <button class="game-btn" id="startBtn">Start Game</button>
+                <button class="game-btn" id="nextRoundBtn" disabled>Next Round</button>
+            </div>
             
-            <h3>Upgrades</h3>
-            <button class="upgrade-btn" id="rangeUpgrade">Upgrade Range ($50)</button>
-            <button class="upgrade-btn" id="pierceUpgrade">Upgrade Pierce ($50)</button>
+            <div class="tower-selection">
+                <div class="section-title">Build Towers ($100)</div>
+                <div class="tower-grid">
+                    <div class="tower-option cost" data-tower="monkey">M</div>
+                    <div class="tower-option ice" data-tower="ice">I</div>
+                    <div class="tower-option fire" data-tower="fire">F</div>
+                    <div class="tower-option bomb" data-tower="bomb">B</div>
+                    <div class="tower-option super" data-tower="super">S</div>
+                </div>
+                <div style="text-align: center; font-size: 12px; opacity: 0.8;">
+                    Click to select tower type
+                </div>
+            </div>
+            
+            <div class="upgrades-section">
+                <div class="section-title">Upgrades</div>
+                <button class="upgrade-btn" id="rangeUpgrade">Upgrade Range ($50)</button>
+                <button class="upgrade-btn" id="pierceUpgrade">Upgrade Pierce ($50)</button>
+            </div>
             
             <div class="tower-info">
                 <h4>Selected Tower</h4>
-                <div id="selectedTowerInfo">Click a tower to select</div>
-            </div>
-            
-            <div style="margin-top: 20px;">
-                <h3>Game Speed</h3>
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                    <label for="speedSlider" style="font-size: 14px;">Speed:</label>
-                    <input type="range" id="speedSlider" min="1" max="10" value="1" style="flex: 1;">
-                    <span id="speedDisplay" style="font-weight: bold; min-width: 30px;">1x</span>
-                </div>
-                <div style="display: flex; gap: 5px; margin-bottom: 20px;">
-                    <button class="speed-btn" data-speed="1">1x</button>
-                    <button class="speed-btn" data-speed="2">2x</button>
-                    <button class="speed-btn" data-speed="5">5x</button>
-                    <button class="speed-btn" data-speed="10">10x</button>
+                <div class="tower-stats" id="selectedTowerInfo">
+                    <div style="text-align: center; opacity: 0.7;">Click a tower to select</div>
                 </div>
             </div>
             
-            <div style="margin-top: 20px; text-align: center;">
-                <button class="upgrade-btn" id="restartBtn">Restart</button>
+            <div class="speed-section">
+                <div class="section-title">Game Speed</div>
+                <div class="speed-controls">
+                    <div class="speed-slider-container">
+                        <label for="speedSlider" style="font-size: 14px; font-weight: 600;">Speed:</label>
+                        <input type="range" class="speed-slider" id="speedSlider" min="1" max="10" value="1">
+                        <span class="speed-display" id="speedDisplay">1x</span>
+                    </div>
+                    <div class="speed-buttons">
+                        <button class="speed-btn active" data-speed="1">1x</button>
+                        <button class="speed-btn" data-speed="2">2x</button>
+                        <button class="speed-btn" data-speed="5">5x</button>
+                        <button class="speed-btn" data-speed="10">10x</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="restart-section">
+                <button class="restart-btn" id="restartBtn">Restart Game</button>
             </div>
         </div>
     </div>
@@ -194,7 +587,8 @@
             gameWon: false,
             gameStarted: false,
             selectedTower: null,
-            gameSpeed: 1
+            gameSpeed: 1,
+            selectedTowerType: 'monkey' // Default tower type
         };
 
         // Base tower configuration
@@ -337,6 +731,14 @@
             document.querySelectorAll('.speed-btn').forEach(btn => {
                 btn.addEventListener('click', () => setSpeed(parseInt(btn.dataset.speed)));
             });
+            
+            // Tower selection event listeners
+            document.querySelectorAll('.tower-option').forEach(option => {
+                option.addEventListener('click', () => selectTowerType(option.dataset.tower));
+            });
+            
+            // Set default tower type as selected
+            selectTowerType('monkey');
             
             updateUI();
         }
@@ -731,21 +1133,49 @@
             }
         }
 
+        function selectTowerType(towerType) {
+            gameState.selectedTowerType = towerType;
+            
+            // Update visual selection
+            document.querySelectorAll('.tower-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.querySelector(`[data-tower="${towerType}"]`).classList.add('selected');
+        }
+
         function updateSelectedTowerInfo() {
             let infoDiv = document.getElementById('selectedTowerInfo');
             if (gameState.selectedTower) {
                 let tower = gameState.selectedTower;
                 infoDiv.innerHTML = `
-                    <div>Range: ${tower.range} ${tower.rangeUpgraded ? '(Upgraded)' : ''}</div>
-                    <div>Pierce: ${tower.pierce} ${tower.pierceUpgraded ? '(Upgraded)' : ''}</div>
-                    <div>Damage: ${tower.damage}</div>
+                    <div class="tower-stat ${tower.rangeUpgraded ? 'upgraded' : ''}">
+                        <span>Range</span>
+                        <span>${tower.range} ${tower.rangeUpgraded ? '✓' : ''}</span>
+                    </div>
+                    <div class="tower-stat ${tower.pierceUpgraded ? 'upgraded' : ''}">
+                        <span>Pierce</span>
+                        <span>${tower.pierce} ${tower.pierceUpgraded ? '✓' : ''}</span>
+                    </div>
+                    <div class="tower-stat">
+                        <span>Damage</span>
+                        <span>${tower.damage}</span>
+                    </div>
+                    <div class="tower-stat">
+                        <span>Fire Rate</span>
+                        <span>${Math.round(60/tower.fireRate)}/sec</span>
+                    </div>
                 `;
                 
                 // Update button states
                 document.getElementById('rangeUpgrade').disabled = tower.rangeUpgraded || gameState.money < 50;
                 document.getElementById('pierceUpgrade').disabled = tower.pierceUpgraded || gameState.money < 50;
             } else {
-                infoDiv.innerHTML = 'Click a tower to select';
+                infoDiv.innerHTML = `
+                    <div style="text-align: center; opacity: 0.7; padding: 20px;">
+                        <div style="margin-bottom: 10px;">No tower selected</div>
+                        <div style="font-size: 12px;">Click on a placed tower to select it</div>
+                    </div>
+                `;
                 document.getElementById('rangeUpgrade').disabled = true;
                 document.getElementById('pierceUpgrade').disabled = true;
             }
@@ -833,7 +1263,8 @@
                 gameWon: false,
                 gameStarted: false,
                 selectedTower: null,
-                gameSpeed: 1
+                gameSpeed: 1,
+                selectedTowerType: 'monkey'
             };
             
             baseTowerConfig = {
@@ -847,6 +1278,7 @@
             document.getElementById('startBtn').disabled = false;
             document.getElementById('nextRoundBtn').disabled = true;
             setSpeed(1); // Reset speed to 1x
+            selectTowerType('monkey'); // Reset tower selection
             updateUI();
         }
     </script>
