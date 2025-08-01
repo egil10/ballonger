@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloons Tower Defense MVP</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #2c3e50;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #gameContainer {
+            display: flex;
+            background: #34495e;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        canvas {
+            display: block;
+            border-radius: 10px 0 0 10px;
+        }
+        #ui {
+            width: 250px;
+            background: #27ae60;
+            padding: 20px;
+            border-radius: 0 10px 10px 0;
+            color: white;
+        }
+        .stat {
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .upgrade-btn {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .upgrade-btn:hover {
+            background: #c0392b;
+        }
+        .upgrade-btn:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+        }
+        .tower-info {
+            margin-top: 20px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="sketch-holder"></div>
+        <div id="ui">
+            <div class="logo">nk games</div>
+            <div class="stat">Round: <span id="round">1</span></div>
+            <div class="stat">Money: $<span id="money">650</span></div>
+            <div class="stat">Lives: <span id="lives">40</span></div>
+            
+            <h3>Build Towers</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <div style="width: 40px; height: 40px; background: #8B4513; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">M</div>
+                <div style="width: 40px; height: 40px; background: #FF69B4; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">I</div>
+                <div style="width: 40px; height: 40px; background: #87CEEB; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">F</div>
+                <div style="width: 40px; height: 40px; background: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">B</div>
+                <div style="width: 40px; height: 40px; background: #4169E1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">S</div>
+            </div>
+            
+            <h3>Upgrades</h3>
+            <button class="upgrade-btn" id="rangeUpgrade">Upgrade Range ($50)</button>
+            <button class="upgrade-btn" id="pierceUpgrade">Upgrade Pierce ($50)</button>
+            
+            <div class="tower-info">
+                <h4>Tower Stats</h4>
+                <div>Range: <span id="towerRange">120</span></div>
+                <div>Pierce: <span id="towerPierce">1</span></div>
+                <div>Damage: <span id="towerDamage">1</span></div>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="upgrade-btn" id="restartBtn">Restart</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game constants
+        const GRID_SIZE = 40;
+        const COLS = 15;
+        const ROWS = 15;
+        const CANVAS_WIDTH = COLS * GRID_SIZE;
+        const CANVAS_HEIGHT = ROWS * GRID_SIZE;
+
+        // Game state
+        let gameState = {
+            money: 650,
+            lives: 40,
+            round: 1,
+            maxRounds: 5,
+            balloons: [],
+            towers: [],
+            projectiles: [],
+            waveInProgress: false,
+            balloonsInWave: 0,
+            balloonsSpawned: 0,
+            spawnTimer: 0,
+            gameOver: false,
+            gameWon: false
+        };
+
+        // Tower configuration
+        let towerConfig = {
+            range: 120,
+            pierce: 1,
+            damage: 1,
+            fireRate: 60, // frames between shots
+            cooldown: 0
+        };
+
+        // Balloon colors by tier
+        const BALLOON_COLORS = {
+            1: [255, 0, 0],    // Red
+            2: [0, 0, 255],    // Blue
+            3: [0, 255, 0],    // Green
+            4: [255, 255, 0],  // Yellow
+            5: [0, 0, 0],      // Black
+            6: [255, 255, 255] // White
+        };
+
+        // Path definition based on the image
+        const PATH = [
+            {x: 0, y: 1},  // Start (blue square)
+            {x: 1, y: 1}, {x: 2, y: 1}, {x: 3, y: 1}, {x: 4, y: 1},
+            {x: 5, y: 2}, {x: 6, y: 3}, {x: 7, y: 4}, {x: 8, y: 5},
+            {x: 8, y: 6}, {x: 8, y: 7}, {x: 8, y: 8}, {x: 8, y: 9}, {x: 8, y: 10}, {x: 8, y: 11}, {x: 8, y: 12}, {x: 8, y: 13}, {x: 8, y: 14},
+            {x: 9, y: 14}, {x: 10, y: 14}, {x: 11, y: 14}, {x: 12, y: 14}, {x: 13, y: 14}, {x: 14, y: 14},
+            {x: 14, y: 13}, {x: 14, y: 12}, {x: 14, y: 11}, {x: 14, y: 10}, {x: 14, y: 9}, {x: 14, y: 8}, {x: 14, y: 7}, {x: 14, y: 6}, {x: 14, y: 5}, {x: 14, y: 4}, {x: 14, y: 3}, {x: 14, y: 2}, {x: 14, y: 1}, {x: 14, y: 0}  // End (red square)
+        ];
+
+        function setup() {
+            let canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+            canvas.parent('sketch-holder');
+            
+            // Initialize first tower
+            gameState.towers.push({
+                x: 200,
+                y: 200,
+                range: towerConfig.range,
+                pierce: towerConfig.pierce,
+                damage: towerConfig.damage,
+                fireRate: towerConfig.fireRate,
+                cooldown: 0
+            });
+            
+            // Set up event listeners
+            document.getElementById('rangeUpgrade').addEventListener('click', upgradeRange);
+            document.getElementById('pierceUpgrade').addEventListener('click', upgradePierce);
+            document.getElementById('restartBtn').addEventListener('click', restartGame);
+            
+            startWave();
+        }
+
+        function draw() {
+            if (gameState.gameOver) {
+                drawGameOver();
+                return;
+            }
+            
+            if (gameState.gameWon) {
+                drawGameWon();
+                return;
+            }
+            
+            drawBackground();
+            drawPath();
+            updateAndDrawBalloons();
+            updateAndDrawTowers();
+            updateAndDrawProjectiles();
+            updateWave();
+            updateUI();
+        }
+
+        function drawBackground() {
+            // Draw grass background
+            fill(34, 139, 34);
+            rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            // Draw grid lines
+            stroke(0, 100, 0);
+            strokeWeight(1);
+            for (let i = 0; i <= COLS; i++) {
+                line(i * GRID_SIZE, 0, i * GRID_SIZE, CANVAS_HEIGHT);
+            }
+            for (let j = 0; j <= ROWS; j++) {
+                line(0, j * GRID_SIZE, CANVAS_WIDTH, j * GRID_SIZE);
+            }
+            noStroke();
+        }
+
+        function drawPath() {
+            // Draw path squares
+            fill(139, 69, 19);
+            for (let i = 0; i < PATH.length; i++) {
+                rect(PATH[i].x * GRID_SIZE, PATH[i].y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+            }
+            
+            // Draw start (blue) and end (red) squares
+            fill(0, 0, 255);
+            rect(PATH[0].x * GRID_SIZE, PATH[0].y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+            
+            fill(255, 0, 0);
+            rect(PATH[PATH.length - 1].x * GRID_SIZE, PATH[PATH.length - 1].y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+        }
+
+        function startWave() {
+            gameState.waveInProgress = true;
+            gameState.balloonsInWave = gameState.round * 8;
+            gameState.balloonsSpawned = 0;
+            gameState.spawnTimer = 0;
+        }
+
+        function updateWave() {
+            if (!gameState.waveInProgress) return;
+            
+            gameState.spawnTimer++;
+            
+            // Spawn balloons every 30 frames
+            if (gameState.spawnTimer >= 30 && gameState.balloonsSpawned < gameState.balloonsInWave) {
+                spawnBalloon();
+                gameState.balloonsSpawned++;
+                gameState.spawnTimer = 0;
+            }
+            
+            // Check if wave is complete
+            if (gameState.balloonsSpawned >= gameState.balloonsInWave && gameState.balloons.length === 0) {
+                gameState.waveInProgress = false;
+                gameState.round++;
+                
+                if (gameState.round > gameState.maxRounds) {
+                    gameState.gameWon = true;
+                } else {
+                    setTimeout(startWave, 1000);
+                }
+            }
+        }
+
+        function spawnBalloon() {
+            let tier = Math.min(Math.floor(Math.random() * 6) + 1, gameState.round);
+            let speed = tier === 4 ? 2 : 1; // Yellow balloons are faster
+            
+            gameState.balloons.push({
+                x: PATH[0].x * GRID_SIZE + GRID_SIZE / 2,
+                y: PATH[0].y * GRID_SIZE + GRID_SIZE / 2,
+                pathIndex: 0,
+                tier: tier,
+                speed: speed,
+                health: 1,
+                maxHealth: 1
+            });
+        }
+
+        function updateAndDrawBalloons() {
+            for (let i = gameState.balloons.length - 1; i >= 0; i--) {
+                let balloon = gameState.balloons[i];
+                
+                // Move balloon along path
+                if (balloon.pathIndex < PATH.length - 1) {
+                    let targetX = PATH[balloon.pathIndex + 1].x * GRID_SIZE + GRID_SIZE / 2;
+                    let targetY = PATH[balloon.pathIndex + 1].y * GRID_SIZE + GRID_SIZE / 2;
+                    
+                    let dx = targetX - balloon.x;
+                    let dy = targetY - balloon.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < balloon.speed) {
+                        balloon.pathIndex++;
+                        if (balloon.pathIndex >= PATH.length - 1) {
+                            // Balloon reached the end
+                            gameState.lives--;
+                            gameState.balloons.splice(i, 1);
+                            continue;
+                        }
+                    } else {
+                        balloon.x += (dx / distance) * balloon.speed;
+                        balloon.y += (dy / distance) * balloon.speed;
+                    }
+                }
+                
+                // Draw balloon
+                let color = BALLOON_COLORS[balloon.tier];
+                fill(color[0], color[1], color[2]);
+                ellipse(balloon.x, balloon.y, GRID_SIZE * 0.8, GRID_SIZE * 0.8);
+                
+                // Draw health bar for damaged balloons
+                if (balloon.health < balloon.maxHealth) {
+                    fill(255, 0, 0);
+                    rect(balloon.x - GRID_SIZE/2, balloon.y - GRID_SIZE/2 - 10, GRID_SIZE, 5);
+                    fill(0, 255, 0);
+                    rect(balloon.x - GRID_SIZE/2, balloon.y - GRID_SIZE/2 - 10, 
+                         (balloon.health / balloon.maxHealth) * GRID_SIZE, 5);
+                }
+            }
+        }
+
+        function updateAndDrawTowers() {
+            for (let tower of gameState.towers) {
+                // Draw tower
+                fill(139, 69, 19);
+                rect(tower.x - GRID_SIZE/2, tower.y - GRID_SIZE/2, GRID_SIZE, GRID_SIZE);
+                
+                // Draw range indicator (transparent)
+                fill(255, 255, 255, 30);
+                ellipse(tower.x, tower.y, tower.range * 2, tower.range * 2);
+                
+                // Update cooldown
+                if (tower.cooldown > 0) {
+                    tower.cooldown--;
+                }
+                
+                // Find target and shoot
+                if (tower.cooldown === 0) {
+                    let target = findTarget(tower);
+                    if (target) {
+                        shoot(tower, target);
+                        tower.cooldown = tower.fireRate;
+                    }
+                }
+            }
+        }
+
+        function findTarget(tower) {
+            let bestTarget = null;
+            let bestProgress = -1;
+            
+            for (let balloon of gameState.balloons) {
+                let distance = dist(tower.x, tower.y, balloon.x, balloon.y);
+                if (distance <= tower.range) {
+                    if (balloon.pathIndex > bestProgress) {
+                        bestTarget = balloon;
+                        bestProgress = balloon.pathIndex;
+                    }
+                }
+            }
+            
+            return bestTarget;
+        }
+
+        function shoot(tower, target) {
+            gameState.projectiles.push({
+                x: tower.x,
+                y: tower.y,
+                targetX: target.x,
+                targetY: target.y,
+                speed: 5,
+                damage: tower.damage,
+                pierce: tower.pierce,
+                targetsHit: []
+            });
+        }
+
+        function updateAndDrawProjectiles() {
+            for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
+                let projectile = gameState.projectiles[i];
+                
+                // Move projectile
+                let dx = projectile.targetX - projectile.x;
+                let dy = projectile.targetY - projectile.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < projectile.speed) {
+                    // Projectile reached target
+                    gameState.projectiles.splice(i, 1);
+                    continue;
+                }
+                
+                projectile.x += (dx / distance) * projectile.speed;
+                projectile.y += (dy / distance) * projectile.speed;
+                
+                // Draw projectile
+                fill(255, 255, 0);
+                ellipse(projectile.x, projectile.y, 8, 8);
+                
+                // Check for hits
+                for (let j = gameState.balloons.length - 1; j >= 0; j--) {
+                    let balloon = gameState.balloons[j];
+                    
+                    if (projectile.targetsHit.includes(balloon)) continue;
+                    
+                    let hitDistance = dist(projectile.x, projectile.y, balloon.x, balloon.y);
+                    if (hitDistance < GRID_SIZE / 2) {
+                        balloon.health -= projectile.damage;
+                        projectile.targetsHit.push(balloon);
+                        
+                        if (balloon.health <= 0) {
+                            // Balloon popped
+                            gameState.money += 5;
+                            gameState.balloons.splice(j, 1);
+                            
+                            // Create child balloons based on tier
+                            if (balloon.tier > 1) {
+                                let childTier = balloon.tier - 1;
+                                let childSpeed = childTier === 4 ? 2 : 1;
+                                let childCount = balloon.tier === 5 ? 2 : 1; // Black balloons create 2 children
+                                
+                                for (let k = 0; k < childCount; k++) {
+                                    gameState.balloons.push({
+                                        x: balloon.x,
+                                        y: balloon.y,
+                                        pathIndex: balloon.pathIndex,
+                                        tier: childTier,
+                                        speed: childSpeed,
+                                        health: 1,
+                                        maxHealth: 1
+                                    });
+                                }
+                            }
+                        }
+                        
+                        if (projectile.targetsHit.length >= projectile.pierce) {
+                            gameState.projectiles.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        function mousePressed() {
+            if (mouseX < CANVAS_WIDTH && mouseY < CANVAS_HEIGHT) {
+                // Place tower at grid position
+                let gridX = Math.floor(mouseX / GRID_SIZE);
+                let gridY = Math.floor(mouseY / GRID_SIZE);
+                
+                // Check if position is valid (not on path)
+                let onPath = false;
+                for (let pathPoint of PATH) {
+                    if (pathPoint.x === gridX && pathPoint.y === gridY) {
+                        onPath = true;
+                        break;
+                    }
+                }
+                
+                if (!onPath) {
+                    let towerX = gridX * GRID_SIZE + GRID_SIZE / 2;
+                    let towerY = gridY * GRID_SIZE + GRID_SIZE / 2;
+                    
+                    // Check if tower already exists at this position
+                    let towerExists = false;
+                    for (let tower of gameState.towers) {
+                        if (Math.abs(tower.x - towerX) < GRID_SIZE/2 && Math.abs(tower.y - towerY) < GRID_SIZE/2) {
+                            towerExists = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!towerExists) {
+                        gameState.towers.push({
+                            x: towerX,
+                            y: towerY,
+                            range: towerConfig.range,
+                            pierce: towerConfig.pierce,
+                            damage: towerConfig.damage,
+                            fireRate: towerConfig.fireRate,
+                            cooldown: 0
+                        });
+                    }
+                }
+            }
+        }
+
+        function upgradeRange() {
+            if (gameState.money >= 50) {
+                gameState.money -= 50;
+                towerConfig.range += 20;
+                
+                // Update all existing towers
+                for (let tower of gameState.towers) {
+                    tower.range = towerConfig.range;
+                }
+            }
+        }
+
+        function upgradePierce() {
+            if (gameState.money >= 50) {
+                gameState.money -= 50;
+                towerConfig.pierce += 1;
+                
+                // Update all existing towers
+                for (let tower of gameState.towers) {
+                    tower.pierce = towerConfig.pierce;
+                }
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('round').textContent = gameState.round;
+            document.getElementById('money').textContent = gameState.money;
+            document.getElementById('lives').textContent = gameState.lives;
+            document.getElementById('towerRange').textContent = towerConfig.range;
+            document.getElementById('towerPierce').textContent = towerConfig.pierce;
+            document.getElementById('towerDamage').textContent = towerConfig.damage;
+            
+            // Update button states
+            document.getElementById('rangeUpgrade').disabled = gameState.money < 50;
+            document.getElementById('pierceUpgrade').disabled = gameState.money < 50;
+            
+            // Check for game over
+            if (gameState.lives <= 0) {
+                gameState.gameOver = true;
+            }
+        }
+
+        function drawGameOver() {
+            fill(0, 0, 0, 150);
+            rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            fill(255, 0, 0);
+            textSize(48);
+            textAlign(CENTER, CENTER);
+            text('GAME OVER', CANVAS_WIDTH/2, CANVAS_HEIGHT/2);
+            
+            fill(255);
+            textSize(24);
+            text(`You survived ${gameState.round - 1} rounds!`, CANVAS_WIDTH/2, CANVAS_HEIGHT/2 + 50);
+        }
+
+        function drawGameWon() {
+            fill(0, 0, 0, 150);
+            rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            fill(0, 255, 0);
+            textSize(48);
+            textAlign(CENTER, CENTER);
+            text('YOU WIN!', CANVAS_WIDTH/2, CANVAS_HEIGHT/2);
+            
+            fill(255);
+            textSize(24);
+            text('Congratulations!', CANVAS_WIDTH/2, CANVAS_HEIGHT/2 + 50);
+        }
+
+        function restartGame() {
+            gameState = {
+                money: 650,
+                lives: 40,
+                round: 1,
+                maxRounds: 5,
+                balloons: [],
+                towers: [],
+                projectiles: [],
+                waveInProgress: false,
+                balloonsInWave: 0,
+                balloonsSpawned: 0,
+                spawnTimer: 0,
+                gameOver: false,
+                gameWon: false
+            };
+            
+            towerConfig = {
+                range: 120,
+                pierce: 1,
+                damage: 1,
+                fireRate: 60,
+                cooldown: 0
+            };
+            
+            // Add initial tower
+            gameState.towers.push({
+                x: 200,
+                y: 200,
+                range: towerConfig.range,
+                pierce: towerConfig.pierce,
+                damage: towerConfig.damage,
+                fireRate: towerConfig.fireRate,
+                cooldown: 0
+            });
+            
+            startWave();
+        }
+    </script>
+</body>
+</html> 
